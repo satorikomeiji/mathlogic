@@ -13,11 +13,11 @@ import System.Environment
 --import Data.String.UTF8 (encode)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.HashTable.IO as H
-
+import qualified Data.Set as S
 import Control.Applicative ((<$>), (<*),  (*>){-,(<|>)-}, (<*>))
 
 data Expr' = Impl Expr' Expr' | Disj Expr' Expr' | Conj Expr' Expr' | Var String | Not Expr'
-          deriving (Show, Generic)
+          deriving (Show, Generic, Ord)
 
 
 instance Eq Expr' where
@@ -27,8 +27,8 @@ instance Eq Expr' where
   (Not e1) == (Not e2) = e1 == e2
   (Var x1) == (Var x2) = x1 == x2
   _ == _ = False
-fromRight           :: Either a b -> b
-fromRight (Left _)  = error "Either.Unwrap.fromRight: Argument takes form 'Left _'" -- yuck
+fromRight           :: (Show e)=>Either e b -> b
+fromRight (Left e)  = error $ show e ++ "Either.Unwrap.fromRight: Argument takes form 'Left _'" -- yuck
 fromRight (Right x) = x  
 term::Parser Expr'
 term = ( ((:) <$> satisfy isAlpha <*> many digit) >>= (return . Var) ) <|> do { string "("; x <- expr; string ")"; return x } <|> Not <$> (string "!" >> term)
@@ -130,21 +130,26 @@ usage = "Usage: task1 INPUT_FILE OUTPUT_FILE"
 main = do
   hashes <- H.new::IO HashTable
   impls <- H.new::IO HashTable'
+  putStrLn "Enter premises"
+  premises <- (S.fromList . map getExpr . BS.words) <$> BS.getLine
 --  forM_ [1..10] (\_ ->
   do
     
                     args <- getArgs
                     when ( length args /= 2) $ putStrLn usage >> exitSuccess
                     
-                    ohandle <- openFile (args !! 1) WriteMode
-                    ihandle <- openFile (args !! 0) ReadMode
+                    --ohandle <- openFile (args !! 1) WriteMode
+                    --ihandle <- openFile (args !! 0) ReadMode
+                    ohandle <- if ((args !! 1) /= "-" ) then openFile (args !! 1) WriteMode else return stdout
+                    ihandle <- if ((args !! 0) /= "-" ) then openFile (args !! 0) ReadMode  else return stdin
                     mlines <- BS.hGetContents ihandle
                     
                     forM_ ([1..] `zip` BS.lines mlines) (\x ->
                                        let
 --                                         debugTrace e = print $ "inserting " ++ show e
 --                                         debugImpls t = print $ "impls " ++ show t
-                                         close_handles = do {hClose ihandle ; hClose ohandle }
+                                         close_handles = do when (ihandle /= stdin)  $ hClose ihandle
+                                                            when (ohandle /= stdout) $ hClose ohandle 
                                          expr = getExpr $ snd x
                                          current_line = fst x
                                          error_message =  "Доказательство некорректно с " ++ show current_line ++ " высказывания"::String
@@ -163,7 +168,7 @@ main = do
                                              Nothing -> lookUpXs xs e
                                              Just _  -> implUpdate e
                                        in
-                                       if isAxiom expr then
+                                       if isAxiom expr || S.member expr premises then
                                               do
                                                 H.insert hashes expr 0
                                                 implUpdate expr
@@ -179,9 +184,11 @@ main = do
                                                    
 
                                      )
-                    hPutStrLn ohandle "Доказательство корректно"  
-                    hClose ihandle
-                    hClose ohandle
+                    hPutStrLn ohandle "Доказательство корректно"
+                    when (ihandle /= stdin)  $ hClose ihandle
+                    when (ohandle /= stdout) $ hClose ohandle
+                    --hClose ihandle
+                    --hClose ohandle
 
 
                             

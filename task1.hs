@@ -17,7 +17,14 @@ import qualified Data.Set as S
 import Control.Applicative ((<$>), (<*),  (*>){-,(<|>)-}, (<*>))
 
 data Expr' = Impl Expr' Expr' | Disj Expr' Expr' | Conj Expr' Expr' | Var String | Not Expr'
-          deriving (Show, Generic, Ord)
+          deriving (Generic, Ord)
+instance Show Expr' where
+    show (Impl e1 e2) = "(" ++ show e1 ++ "->" ++ show e2 ++ ")"
+    show (Conj e1 e2) = "(" ++ show e1 ++ "&"  ++ show e2 ++ ")"
+    show (Disj e1 e2) = "(" ++ show e1 ++ "|"  ++ show e2 ++ ")"
+    show (Not e1)     = "!" ++ show e1
+    show (Var x1)     = x1
+
 
 
 instance Eq Expr' where
@@ -68,52 +75,45 @@ variables expr = let vars_ (Var      v)     vs = v ++ vs
 --                     vars_ (Biconditional e1 e2) vs = vars_ e1 vs ++ vars_ e2 vs
                  in  {-map head . group . sort $-} vars_ expr []
 getExpr = fromRight . parse expr ""
-axiomExprs = map getExpr axioms                                                       
-axioms = ["A->(B->A)",
-          "((A->(B->C))->((A->B)->(A->C)))",
-          "A&B->A",
-          "A&B->B",
-          "A->(B->(A&B))",
-          "A->(A|B)",
-          "B->(A|B)",
-          "(A->C)->((B->C)->((A|B)->C))",
-          "!A->(A->B)",
-          "!!A->A",
-          "(A->B)->((A->!B)->!A)",
-          "A|!A"
-         ]
-isAxiom::Expr' -> Bool
-isAxiom expr = isAxiom' expr axiomExprs
-  where
-    isAxiom' expr [x] = appliable (expr, x)
-    isAxiom' expr (x:xs) = appliable (expr, x) || isAxiom' expr xs
---appliable exp1@(Disj e1 e2) axiom@(Disj e3 e4) =
---  checkUnique $ appliable' exp1 axiom ++ appliable' exp
---appliable exp1@(Conj e1 e2) axiom@(Conj e3 e4) =
---  checkUnique $ appliable' exp1 axiom ++ appliable' exp
---nappliable exp1@(Impl e1 e2) axiom@(Impl e3 e4) =
---  checkUnique $ appliable' exp1 axiom ++ appliable' exp
-appliable (ex, axiom) =
-  case applicable' ex axiom of
-    Just xs -> checkUnique xs []
-    Nothing -> False
-  where
-    applicable' (Disj e1 e2) (Disj e3 e4) = (++) <$> applicable' e1 e3 <*> applicable' e2 e4
-    applicable' (Conj e1 e2) (Conj e3 e4) = (++) <$> applicable' e1 e3 <*> applicable' e2 e4
-    applicable' (Impl e1 e2) (Impl e3 e4) = (++) <$> applicable' e1 e3 <*> applicable' e2 e4
-    applicable' (Not e1) (Not e2) = applicable' e1 e2
-    applicable' ex (Var x) = Just $ [(x, ex)]
-    applicable' _ _ = Nothing
-    checkUnique [] _ = True
-    checkUnique (x:xs) [] = checkUnique xs [x]
-    checkUnique (x:xs) tx@(t:ts) = check' x t
-      where check' (v1, ex1) (v2, ex2) = if v1 == v2 then
-                                           if ex1 == ex2 then
-                                             checkUnique xs ts
-                                           else
-                                             False
-                                         else
-                                           checkUnique xs (x:tx)
+isAxiom :: Expr' -> Bool
+isAxiom e = isAxiom1 e || isAxiom2 e || isAxiom3 e || isAxiom45 e || isAxiom67 e || isAxiom8 e || isAxiom9 e || isAxiom10 e || isAxiom11 e
+--ax2
+isAxiom2 (Impl (Impl a1 b1) (Impl (Impl a2 (Impl b2 c1)) (Impl a3 c2))) = (a1 == a2) && (a2 == a3) && (b1 == b2) && (c1 == c2)
+isAxiom2 _ = False
+
+--ax3
+isAxiom3 (Impl a1 (Impl b1 (Conj a2 b2))) = (a1 == a2) && (b1 == b2)
+isAxiom3 _ = False
+
+--ax4,5
+isAxiom45 (Impl (Conj a1 b1) ab) = (a1 == ab) || (b1 == ab)
+isAxiom45 _ = False
+
+--ax6,7
+isAxiom67 (Impl ab (Disj a1 b1)) = (a1 == ab) || (b1 == ab)
+isAxiom67 _ = False
+
+--ax8
+isAxiom8 (Impl (Impl a1 c1) (Impl (Impl b1 c2) (Impl (Disj a2 b2) c3))) = (a1 == a2) && (b1 == b2) && (c1 == c2) && (c2 == c3)
+isAxiom8 _ = False
+
+--ax9
+isAxiom9 (Impl (Impl a1 b1) (Impl (Impl a2 (Not b2)) (Not a3))) = (a1 == a2) && (a2 == a3) && (b1 == b2)
+isAxiom9 _ = False
+
+--ax10
+isAxiom10 (Impl (Not (Not a1)) a2) = (a1 == a2)
+isAxiom10 _ = False
+
+--ax1
+isAxiom1 (Impl a1 (Impl b1 a2)) = (a1 == a2)
+isAxiom1 _ = False
+
+--axexmiddle
+isAxiom11 (Disj a1 (Not a2)) = (a1 == a2)
+isAxiom11 _ = False
+
+
 
 
 --  where vars = case s of
@@ -146,8 +146,8 @@ main = do
                     
                     forM_ ([1..] `zip` BS.lines mlines) (\x ->
                                        let
---                                         debugTrace e = print $ "inserting " ++ show e
---                                         debugImpls t = print $ "impls " ++ show t
+                                         debugHash e = putStrLn $ "inserting " ++ show e
+                                         debugImpls t = putStrLn $ "impls " ++ show t
                                          close_handles = do when (ihandle /= stdin)  $ hClose ihandle
                                                             when (ohandle /= stdout) $ hClose ohandle 
                                          expr = getExpr $ snd x
@@ -155,12 +155,12 @@ main = do
                                          error_message =  "Доказательство некорректно с " ++ show current_line ++ " высказывания"::String
                                          implUpdate e@(Impl a1 a2) = do
                                            H.insert hashes e 0
---                                           debugTrace e
+--                                           debugHash e
                                            implies <- H.lookup impls a2
                                            case implies of
-                                             Just t -> H.insert impls a2 (a1:t)-- >> debugImpls t
+                                             Just t -> H.insert impls a2 (a1:t) -- >> debugImpls t
                                              Nothing -> H.insert impls a2 [a1]
-                                         implUpdate e = H.insert hashes e 0 -- >> debugTrace e
+                                         implUpdate e = H.insert hashes e 0 -- >> debugHash e
                                          lookUpXs [] _ = hPutStrLn ohandle error_message >> close_handles >> exitSuccess
                                          lookUpXs (x:xs) e = do
                                            impli <- H.lookup hashes x
@@ -170,15 +170,16 @@ main = do
                                        in
                                        if isAxiom expr || S.member expr premises then
                                               do
+                                                putStrLn $ show current_line ++ "Axiom " ++ show expr
                                                 H.insert hashes expr 0
                                                 implUpdate expr
-                                                     --print exp
+                                                --print expr
                                             else 
                                               do
                                                 pl <- H.lookup impls expr
                                                 case pl of
                                                   Nothing -> hPutStrLn ohandle error_message >> close_handles >> exitSuccess
-                                                  Just xs -> lookUpXs xs expr
+                                                  Just xs -> lookUpXs xs expr >> (putStrLn $ show current_line ++ "MP " ++ show expr)
      
                                                         
                                                    

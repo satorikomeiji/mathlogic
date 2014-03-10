@@ -80,20 +80,7 @@ variables expr = let vars_ (Var      v)     vs = v ++ vs
 header::Parser ([Expr'], Expr')
 header = (,) <$>  (expr `sepBy1` (char ','))  <* (string "|-") <*> expr
 getExpr = fromRight . parse expr ""
-axiomExprs = map getExpr axioms                                                       
-axioms = ["A->(B->A)",
-          "((A->(B->C))->((A->B)->(A->C)))",
-          "A&B->A",
-          "A&B->B",
-          "A->(B->(A&B))",
-          "A->(A|B)",
-          "B->(A|B)",
-          "(A->C)->((B->C)->((A|B)->C))",
-          "!A->(A->B)",
-          "!!A->A",
-          "(A->B)->((A->!B)->!A)",
-          "A|!A"
-         ]
+
 axiom1 a b = Impl a $ Impl b a
 axiom4 a b = Impl (Conj a b) a
 axiom5 a b = Impl (Conj a b) b
@@ -103,38 +90,45 @@ axiom8 a b c =Impl (Impl a c) $ Impl (Impl b c) $ Impl (Disj a b) c
 axiom9 a b = Impl (Impl a b) (Impl (Impl a (Not b)) (Not a))
 axiom10 a = Impl (Not $ Not a) a
 axiom11 a = Disj a (Not a)
-isAxiom::Expr' -> Bool
-isAxiom expr = isAxiom' expr axiomExprs
-  where
-    isAxiom' expr [x] = appliable (expr, x)
-    isAxiom' expr (x:xs) = appliable (expr, x) || isAxiom' expr xs
---appliable exp1@(Disj e1 e2) axiom@(Disj e3 e4) =
---  checkUnique $ appliable' exp1 axiom ++ appliable' exp
---appliable exp1@(Conj e1 e2) axiom@(Conj e3 e4) =
---  checkUnique $ appliable' exp1 axiom ++ appliable' exp
---nappliable exp1@(Impl e1 e2) axiom@(Impl e3 e4) =
---  checkUnique $ appliable' exp1 axiom ++ appliable' exp
-appliable (ex, axiom) =
-  case applicable' ex axiom of
-    Just xs -> checkUnique xs []
-    Nothing -> False
-  where
-    applicable' (Disj e1 e2) (Disj e3 e4) = (++) <$> applicable' e1 e3 <*> applicable' e2 e4
-    applicable' (Conj e1 e2) (Conj e3 e4) = (++) <$> applicable' e1 e3 <*> applicable' e2 e4
-    applicable' (Impl e1 e2) (Impl e3 e4) = (++) <$> applicable' e1 e3 <*> applicable' e2 e4
-    applicable' (Not e1) (Not e2) = applicable' e1 e2
-    applicable' ex (Var x) = Just $ [(x, ex)]
-    applicable' _ _ = Nothing
-    checkUnique [] _ = True
-    checkUnique (x:xs) [] = checkUnique xs [x]
-    checkUnique (x:xs) tx@(t:ts) = check' x t
-      where check' (v1, ex1) (v2, ex2) = if v1 == v2 then
-                                           if ex1 == ex2 then
-                                             checkUnique xs ts
-                                           else
-                                             False
-                                         else
-                                           checkUnique xs (x:tx)
+
+isAxiom :: Expr' -> Bool
+isAxiom e = isAxiom1 e || isAxiom2 e || isAxiom3 e || isAxiom45 e || isAxiom67 e || isAxiom8 e || isAxiom9 e || isAxiom10 e || isAxiom11 e
+--ax2
+isAxiom2 (Impl (Impl a1 b1) (Impl (Impl a2 (Impl b2 c1)) (Impl a3 c2))) = (a1 == a2) && (a2 == a3) && (b1 == b2) && (c1 == c2)
+isAxiom2 _ = False
+
+--ax3
+isAxiom3 (Impl a1 (Impl b1 (Conj a2 b2))) = (a1 == a2) && (b1 == b2)
+isAxiom3 _ = False
+
+--ax4,5
+isAxiom45 (Impl (Conj a1 b1) ab) = (a1 == ab) || (b1 == ab)
+isAxiom45 _ = False
+
+--ax6,7
+isAxiom67 (Impl ab (Disj a1 b1)) = (a1 == ab) || (b1 == ab)
+isAxiom67 _ = False
+
+--ax8
+isAxiom8 (Impl (Impl a1 c1) (Impl (Impl b1 c2) (Impl (Disj a2 b2) c3))) = (a1 == a2) && (b1 == b2) && (c1 == c2) && (c2 == c3)
+isAxiom8 _ = False
+
+--ax9
+isAxiom9 (Impl (Impl a1 b1) (Impl (Impl a2 (Not b2)) (Not a3))) = (a1 == a2) && (a2 == a3) && (b1 == b2)
+isAxiom9 _ = False
+
+--ax10
+isAxiom10 (Impl (Not (Not a1)) a2) = (a1 == a2)
+isAxiom10 _ = False
+
+--ax1
+isAxiom1 (Impl a1 (Impl b1 a2)) = (a1 == a2)
+isAxiom1 _ = False
+
+--axexmiddle
+isAxiom11 (Disj a1 (Not a2)) = (a1 == a2)
+isAxiom11 _ = False
+
 
 
 --  where vars = case s of
@@ -386,16 +380,16 @@ construct_proof g a p= construct' p  (S.empty, M.empty)
         updated_hashes del (hash1, hash2) = (S.insert del hash1, hash2)
         insert_impl::Expr'->Expr'->M.Map Expr' [Expr']->M.Map Expr' [Expr']
         insert_impl x y = M.insertWith (++) y [x] 
-reflProof stmt = [  aAX1,
+reflProof stmt = [  axiom1 stmt stmt,
+                    axiom1 stmt (Impl stmt stmt),
                     aAX2,
                     aMP1,
-                    aAX1',
                     Impl stmt stmt
                     ]
-            where   aAX1 = Impl stmt $ Impl stmt stmt
+            where   aAX1 = axiom1 stmt stmt
                     aAX2 = Impl aAX1 $ Impl aAX1' (Impl stmt stmt)
                     aMP1 = Impl (Impl stmt (Impl (Impl stmt stmt) stmt)) (Impl stmt stmt)
-                    aAX1'= Impl stmt $ Impl (Impl stmt stmt) stmt
+                    aAX1'= axiom1 stmt (Impl stmt stmt)
                     
 printProof h = mapM_ (hPutStrLn h . show)
 

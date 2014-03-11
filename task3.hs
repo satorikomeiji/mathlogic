@@ -14,7 +14,7 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 --import Data.String.UTF8 (encode)
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashTable.IO as H
+--import qualified Data.HashTable.IO as H
 --import qualified Data.HashMap as HM
 import Control.Applicative ((<$>), (<*),  (*>){-,(<|>)-}, (<*>))
 import Data.Maybe (fromJust)
@@ -89,10 +89,10 @@ axiom7 a b = Impl b $ Disj a b
 axiom8 a b c =Impl (Impl a c) $ Impl (Impl b c) $ Impl (Disj a b) c
 axiom9 a b = Impl (Impl a b) (Impl (Impl a (Not b)) (Not a))
 axiom10 a = Impl (Not $ Not a) a
-axiom11 a = Disj a (Not a)
+--axiom11 a = Disj a (Not a)
 
 isAxiom :: Expr' -> Bool
-isAxiom e = isAxiom1 e || isAxiom2 e || isAxiom3 e || isAxiom45 e || isAxiom67 e || isAxiom8 e || isAxiom9 e || isAxiom10 e || isAxiom11 e
+isAxiom e = isAxiom1 e || isAxiom2 e || isAxiom3 e || isAxiom45 e || isAxiom67 e || isAxiom8 e || isAxiom9 e || isAxiom10 e -- || isAxiom11 e
 --ax2
 isAxiom2 (Impl (Impl a1 b1) (Impl (Impl a2 (Impl b2 c1)) (Impl a3 c2))) = (a1 == a2) && (a2 == a3) && (b1 == b2) && (c1 == c2)
 isAxiom2 _ = False
@@ -126,8 +126,8 @@ isAxiom1 (Impl a1 (Impl b1 a2)) = (a1 == a2)
 isAxiom1 _ = False
 
 --axexmiddle
-isAxiom11 (Disj a1 (Not a2)) = (a1 == a2)
-isAxiom11 _ = False
+--isAxiom11 (Disj a1 (Not a2)) = (a1 == a2)
+--isAxiom11 _ = False
 
 
 
@@ -139,8 +139,8 @@ isAxiom11 _ = False
 --        applicable
 instance  Hashable  Expr'
 --instance  Hashable  [Expr']
-type HashTable = H.BasicHashTable Expr' Int
-type HashTable' = H.BasicHashTable Expr' [Expr']
+--type HashTable = H.BasicHashTable Expr' Int
+--type HashTable' = H.BasicHashTable Expr' [Expr']
 getVariables :: Expr' -> [String]
 getVariables expr = nub (getVariables' expr)
     where getVariables' expr =
@@ -413,7 +413,8 @@ processVariable expr valueList (var:varTail) =
    let v = Var var in
    let toVar (VariableValue s x) = if x then Var s else (Not $ Var s) in
    let prems = map toVar valueList in
-    [axiom11 v] ++ --MP
+    excludedMiddle v ++
+   -- [axiom11 v] ++ --MP
         (construct_proof prems (Not v) proofFalse) ++ --MP
             (construct_proof prems v proofTrue) ++ --MP
             [(axiom8 v (Not v) expr)] ++
@@ -433,8 +434,8 @@ do_main h str =
       error "The formula is not logically valid!"
 
 main = do
-  hashes <- H.new::IO HashTable
-  impls <- H.new::IO HashTable'
+  --hashes <- H.new::IO HashTable
+  --impls <- H.new::IO HashTable'
 --  forM_ [1..10] (\_ ->
   args <- getArgs
   when ( length args /= 2) $ putStrLn usage >> exitSuccess

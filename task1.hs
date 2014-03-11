@@ -76,7 +76,7 @@ variables expr = let vars_ (Var      v)     vs = v ++ vs
                  in  {-map head . group . sort $-} vars_ expr []
 getExpr = fromRight . parse expr ""
 isAxiom :: Expr' -> Bool
-isAxiom e = isAxiom1 e || isAxiom2 e || isAxiom3 e || isAxiom45 e || isAxiom67 e || isAxiom8 e || isAxiom9 e || isAxiom10 e || isAxiom11 e
+isAxiom e = isAxiom1 e || isAxiom2 e || isAxiom3 e || isAxiom45 e || isAxiom67 e || isAxiom8 e || isAxiom9 e || isAxiom10 e -- || isAxiom11 e
 --ax2
 isAxiom2 (Impl (Impl a1 b1) (Impl (Impl a2 (Impl b2 c1)) (Impl a3 c2))) = (a1 == a2) && (a2 == a3) && (b1 == b2) && (c1 == c2)
 isAxiom2 _ = False
@@ -110,8 +110,8 @@ isAxiom1 (Impl a1 (Impl b1 a2)) = (a1 == a2)
 isAxiom1 _ = False
 
 --axexmiddle
-isAxiom11 (Disj a1 (Not a2)) = (a1 == a2)
-isAxiom11 _ = False
+--isAxiom11 (Disj a1 (Not a2)) = (a1 == a2)
+--isAxiom11 _ = False
 
 
 

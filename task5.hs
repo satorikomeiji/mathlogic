@@ -14,7 +14,7 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 --import Data.String.UTF8 (encode)
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashTable.IO as H
+--import qualified Data.HashTable.IO as H
 --import qualified Data.HashMap as HM
 import Control.Applicative ((<$>), (<*),  (*>){-,(<|>)-}, (<*>))
 import Data.Maybe (fromJust)

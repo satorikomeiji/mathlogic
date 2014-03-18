@@ -14,7 +14,7 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 --import Data.String.UTF8 (encode)
 import qualified Data.ByteString.Char8 as BS
-import qualified Data.HashTable.IO as H
+--import qualified Data.HashTable.IO as H
 --import qualified Data.HashMap as HM
 import Control.Applicative ((<$>), (<*),  (*>){-,(<|>)-}, (<*>))
 import Data.Maybe (fromJust)
@@ -218,11 +218,11 @@ objvars' x@(ObjVar s) = [x]
 objvars' (ObjTerm s xs) = concatMap objvars' xs
 isAxiom13 e@(Impl psi (Exists x psi1)) = any (freeAndSubst psi1 psi x) (objvars psi) 
 isAxiom13 _ = False
-instance  Hashable  Expr'
-instance  Hashable  ObjTerm
---instance  Hashable  [Expr']
-type HashTable = H.BasicHashTable Expr' Int
-type HashTable' = H.BasicHashTable Expr' [Expr']
+--instance  Hashable  Expr'
+--instance  Hashable  ObjTerm
+----instance  Hashable  [Expr']
+--type HashTable = H.BasicHashTable Expr' Int
+--type HashTable' = H.BasicHashTable Expr' [Expr']
 usage = "Usage: task1 INPUT_FILE OUTPUT_FILE"
 --construct_proof h mlines = 
 --  construct' [] _ = []
@@ -364,8 +364,8 @@ reflProof stmt = [  axiom1 stmt stmt,
                    
 printProof h = mapM_ (hPutStrLn h . show) 
 main = do
-  hashes <- H.new::IO HashTable
-  impls <- H.new::IO HashTable'
+--  hashes <- H.new::IO HashTable
+--  impls <- H.new::IO HashTable'
 --  forM_ [1..10] (\_ ->
   args <- getArgs
   when ( length args /= 2) $ putStrLn usage >> exitSuccess

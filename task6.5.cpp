@@ -196,5 +196,4 @@ int main () {
     std::cout << "Enter n,m" << std::endl;
     std::cin >> n >> m;
     std::cout << "Ackerman(" << n << "," << m << ") = " << (apply<ackerman>(n,m)) << std::endl;
-    //print_out<ackerman>(1,1);
 }

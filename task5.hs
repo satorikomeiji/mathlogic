@@ -79,8 +79,8 @@ objterm = try (ObjTerm <$> ((:) <$> satisfy isLower <*> many digit <* string "("
 disj = chainl1 term parseOperation 
 expr = try impl <|> try disj' <|> term
 
-parseforall = Forall <$> (string "@" >> objterm') <*> term 
-parseexists = Exists <$> (string "?" >> objterm') <*> term 
+parseforall = Forall <$> (string "@" >> (ObjVar <$> ((:) <$> satisfy isLower <*> many digit))) <*> term 
+parseexists = Exists <$> (string "?" >> (ObjVar <$> ((:) <$> satisfy isLower <*> many digit))) <*> term 
 disj' = chainl1 conj' $ parseOperation' "|"
 conj' = chainl1 term  $ parseOperation' "&"
 parseOperation' :: BS.ByteString -> Parser (Expr' -> Expr' -> Expr')
@@ -306,7 +306,7 @@ main = do
     ohandle <- if ((args !! 1) /= "-" ) then openFile (args !! 1) WriteMode else return stdout
     ihandle <- if ((args !! 0) /= "-" ) then openFile (args !! 0) ReadMode  else return stdin
     mlines <-(map (fromRight . (parse expr "") . BS.pack) . lines) <$> hGetContents ihandle
---    forM mlines (\x -> do putStrLn $ show x)
+    --forM mlines (\x -> do putStrLn $ show x)
     case checkProof mlines of 
         Right str -> hPutStrLn ohandle str
         Left  err -> hPutStrLn ohandle err

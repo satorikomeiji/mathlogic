@@ -306,7 +306,7 @@ main = do
     ohandle <- if ((args !! 1) /= "-" ) then openFile (args !! 1) WriteMode else return stdout
     ihandle <- if ((args !! 0) /= "-" ) then openFile (args !! 0) ReadMode  else return stdin
     mlines <-(map (fromRight . (parse expr "") . BS.pack) . lines) <$> hGetContents ihandle
-    forM mlines (\x -> do putStrLn $ show x)
+--    forM mlines (\x -> do putStrLn $ show x)
     case checkProof mlines of 
         Right str -> hPutStrLn ohandle str
         Left  err -> hPutStrLn ohandle err

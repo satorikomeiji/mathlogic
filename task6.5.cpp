@@ -150,7 +150,8 @@ struct native_equals
     }
 };
 
-
+typedef S<N, Z> r_one;
+typedef S<N, r_one> r_two;
 typedef S< R< Z, U< 3, 2 > >, U< 1, 1 >, U< 1, 1 > > r_dec;
 typedef S< native_plus, U<2, 1>, U<2, 2> > r_plus;
 typedef S< native_minus, U<2, 1>, U<2, 2> > r_minus;
@@ -164,13 +165,11 @@ typedef S < S< NOT, NOT >, S< r_minus, U< 2, 2 >, U< 2, 1 > > > r_less;
 typedef S< native_equals, U<2, 1>, U<2, 2> > r_equals;
 typedef S< r_minus, S< r_plus, U< 3, 3 >, S< r_mul , S< S < NOT, NOT >, U < 3, 1> >, U < 3, 2 > > >, S< r_mul , S < S< NOT, NOT >, U< 3, 1> >, U< 3, 3 > > > IF;
 typedef S< r_dec, M< S< S< r_equals, r_mod, Z > , U< 3, 2 >, S< r_pow, U< 3, 1 >, U< 3, 3> > > > > plog;
-typedef S< R< S< r_greater, U< 1, 1 >, S < N, Z > >, S< S< S< S< NOT, NOT >, r_mul > , S< r_mod, U< 3, 1 >, U< 3, 2 > >, U< 3, 3 > >, U< 3, 1 >, S< S< N, N >, U< 3, 2 > >, U< 3, 3 > > >, U< 1, 1 >,
-            S< r_dec, S< r_div, U< 1, 1 >, S< N,S < N, Z > > > > > isPrime;
+typedef S< R< S< r_greater, U< 1, 1 >, r_one >, S< S< S< S< NOT, NOT >, r_mul > , S< r_mod, U< 3, 1 >, U< 3, 2 > >, U< 3, 3 > >, U< 3, 1 >, S< S< N, N >, U< 3, 2 > >, U< 3, 3 > > >, U< 1, 1 >,
+            S< r_dec, S< r_div, U< 1, 1 >, r_two > > > isPrime;
 typedef S< R< Z, S< r_plus, S< isPrime, U< 3, 2 > >, U< 3, 3 > > >, U< 1, 1 >, S< N, U< 1, 1 > > > primeBefore;
 typedef S< M< S< r_greater, U< 2, 1 >, S< primeBefore, U< 2, 2 > > > >, N > nthPrime;
-typedef S< r_dec, S< plog, S< N, S < N, Z > > , U< 1, 1 > > > size;
-typedef S< N, Z > r_one;
-typedef S< N, r_one > r_two;
+typedef S< r_dec, S< plog, r_two , U< 1, 1 > > > size;
 typedef S< r_mul , S< r_two , U<2, 1> > , S< r_mul , U< 2, 1 >,
             S< r_pow, S< nthPrime, S< N, S< size, U< 2, 1 > > > >, S< N, U< 2, 2 > > > > > push;
 typedef S< push, S< push, U<3, 1>, U<3, 2> >, U<3, 3> > push2;

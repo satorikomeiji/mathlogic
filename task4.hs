@@ -249,7 +249,7 @@ addProof1Internal a b c =
         [axiom3 a b
         ,Impl (Conj a b)  c --hypotheses
         ,axiom1 (Impl (Conj a b) c) a
-        ,Impl (Impl (Conj a b) c) a
+        ,Impl a (Impl (Conj a b) c) 
         ,axiom1 (Impl (Conj a b) c) b
         ,(Impl (Impl (Impl (Conj a b) c) (Impl b (Impl (Conj a b) c))) (Impl a (Impl (Impl (Conj a b) c) (Impl b (Impl (Conj a b) c)))))
         ,(Impl a (Impl (Impl (Conj a b) c) (Impl b (Impl (Conj a b) c))))

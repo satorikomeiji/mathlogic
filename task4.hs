@@ -215,7 +215,7 @@ objvars (Exists s e) = s : objvars e
 objvars (Forall s e) = s : objvars e
 objvars (Var s xs)   = concatMap objvars' xs
 objvars' x@(ObjVar s) = [x]
-objvars' (ObjTerm s xs) = concatMap objvars' xs
+objvars' x@(ObjTerm s xs) = x:(concatMap objvars' xs)
 isAxiom13 e@(Impl psi (Exists x psi1)) = any (freeAndSubst psi1 psi x) (objvars psi) 
 isAxiom13 _ = False
 --instance  Hashable  Expr'

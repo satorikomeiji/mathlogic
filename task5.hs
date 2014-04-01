@@ -222,7 +222,7 @@ varterms (Var s xs) x       = foldr (\a b -> b + objvarNumber a x) 0 xs
 objvarNumber (ObjVar s) (ObjVar s1) = if s == s1 then 1 else 0
 objvarNumber (ObjTerm s ts) x = foldl (\a b -> a + objvarNumber b x) 0 ts 
 free::Expr'->ObjTerm->ObjTerm->Bool
-free exp x y = (boundNumber exp x) == (boundNumber (subst exp x y) y)
+free exp x y = all (\t -> (boundNumber exp t) == (boundNumber (subst exp x y) t)) (objvars' y)
 
 subst::Expr'->ObjTerm->ObjTerm->Expr'
 subst expr@(Forall x1 e1) x y = if x1 /= x then Forall x1 (subst e1 x y) else expr --Forall x1 (subst e1 x y)

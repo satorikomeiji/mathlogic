@@ -5,8 +5,12 @@ import System.IO
 import Control.Monad
 import Text.Parsec 
 import Text.Parsec.ByteString --hiding ((<|>))
+--import Data.Attoparsec
+--import Data.Attoparsec.ByteString
+--import Data.Attoparsec.Char8
+--import Data.Attoparsec.Combinator --hiding ((<|>))
 import Data.Char (isAlpha, isLower)
-import Data.Hashable
+--import Data.Hashable
 import GHC.Generics (Generic)
 import System.Exit (exitSuccess)
 import System.Environment
@@ -222,7 +226,11 @@ varterms (Var s xs) x       = foldr (\a b -> b + objvarNumber a x) 0 xs
 objvarNumber (ObjVar s) (ObjVar s1) = if s == s1 then 1 else 0
 objvarNumber (ObjTerm s ts) x = foldl (\a b -> a + objvarNumber b x) 0 ts 
 free::Expr'->ObjTerm->ObjTerm->Bool
-free exp x y = all (\t -> (boundNumber exp t) == (boundNumber (subst exp x y) t)) (objvars' y)
+free exp x y = all (\t -> (boundNumber exp t) == (boundNumber (subst exp x y) t)) (objvars'' y)
+
+objvars''::ObjTerm->[ObjTerm]
+objvars'' x@(ObjVar s) = [x]
+objvars'' x@(ObjTerm s xs) = concatMap objvars'' xs
 
 subst::Expr'->ObjTerm->ObjTerm->Expr'
 subst expr@(Forall x1 e1) x y = if x1 /= x then Forall x1 (subst e1 x y) else expr --Forall x1 (subst e1 x y)
@@ -240,7 +248,7 @@ isFree (Disj e1 e2) x = (isFree  e1 x ) ||  (isFree e2 x)
 isFree (Conj e1 e2) x = (isFree  e1 x ) || (isFree e2 x )
 isFree (Impl e1 e2) x = (isFree  e1 x ) || (isFree e2 x )
 isFree (Not e) x =  isFree e x 
-isFree (Var s xs) x = elem x $ concatMap objvars' xs
+isFree (Var s xs) x = elem x $ concatMap objvars'' xs
 
 
 
@@ -262,7 +270,7 @@ objvars (Exists s e) = s : objvars e
 objvars (Forall s e) = s : objvars e
 objvars (Var s xs)   = concatMap objvars' xs
 objvars' x@(ObjVar s) = [x]
-objvars' x@(ObjTerm s xs) = [x] ++ concatMap objvars' xs
+objvars' x@(ObjTerm s xs) = x:(concatMap objvars' xs)
 isAxiom13 e@(Impl psi (Exists x psi1)) = any (freeAndSubst psi1 psi x) (objvars psi) 
 isAxiom13 _ = False
 usage = "Usage: task1 INPUT_FILE OUTPUT_FILE"
@@ -305,8 +313,9 @@ main = do
                         
     ohandle <- if ((args !! 1) /= "-" ) then openFile (args !! 1) WriteMode else return stdout
     ihandle <- if ((args !! 0) /= "-" ) then openFile (args !! 0) ReadMode  else return stdin
-    mlines <-(map (fromRight . (parse expr "") . BS.pack) . lines) <$> hGetContents ihandle
+    --mlines <-(map (fromRight . (parse expr "") . BS.pack) . lines) <$> hGetContents ihandle
     --forM mlines (\x -> do putStrLn $ show x)
+    mlines <- (map getExpr . BS.lines) <$> BS.hGetContents ihandle
     case checkProof mlines of 
         Right str -> hPutStrLn ohandle str
         Left  err -> hPutStrLn ohandle err

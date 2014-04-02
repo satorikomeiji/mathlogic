@@ -3,12 +3,12 @@
 
 import System.IO
 import Control.Monad
-import Text.Parsec 
-import Text.Parsec.ByteString --hiding ((<|>))
---import Data.Attoparsec
+--import Text.Parsec 
+--import Text.Parsec.ByteString --hiding ((<|>))
+import Data.Attoparsec hiding (satisfy)
 --import Data.Attoparsec.ByteString
---import Data.Attoparsec.Char8
---import Data.Attoparsec.Combinator --hiding ((<|>))
+import Data.Attoparsec.Char8
+import Data.Attoparsec.Combinator --hiding ((<|>))
 import Data.Char (isAlpha, isLower)
 --import Data.Hashable
 import GHC.Generics (Generic)
@@ -20,10 +20,15 @@ import qualified Data.Map as M
 import qualified Data.ByteString.Char8 as BS
 --import qualified Data.HashTable.IO as H
 --import qualified Data.HashMap as HM
-import Control.Applicative ((<$>), (<*),  (*>){-,(<|>)-}, (<*>))
+import Control.Applicative ((<$>), (<*),  (*>),(<|>), (<*>), Alternative, pure)
 import Data.Maybe (fromJust)
 import Data.List  (find, intercalate)
-
+chainl1 :: (Monad f, Alternative f) => f a -> f (a -> a -> a) -> f a
+chainl1 p op = p >>= rest where
+  rest x = do f <- op
+              y <- p
+              rest $! (f x y)
+           <|> pure x
 data Expr' = Impl Expr' Expr' | Disj Expr' Expr' | Conj Expr' Expr' | Var String [ObjTerm] | Not Expr' | Forall ObjTerm Expr' | Exists ObjTerm Expr'
           deriving (Generic, Ord)
 data ObjTerm = ObjTerm String [ObjTerm] | ObjVar String  
@@ -53,13 +58,13 @@ instance Eq Expr' where
   (Forall t1 e1) == (Forall t2 e2)  = t1 == t2 && e1 == e2
   (Exists t1 e1) == (Exists t2 e2)  = t1 == t2 && e1 == e2
   _ == _ = False
-fromRight           :: (Show a)=>Either a b -> b
-fromRight (Left e)  = error $ (show e) ++ "Either.Unwrap.fromRight: Argument takes form 'Left _'" -- yuck
-fromRight (Right x) = x  
+fromRight           :: (Show r)=>Result r-> r
+fromRight (Fail e _ _)  = error $ (show e) ++ "Either.Unwrap.fromRight: Argument takes form 'Left _'" -- yuck
+fromRight (Done _ r) = r  
 equalsP::Parser Expr'
 equalsP = Var "=" <$> ((:) <$> objterm' <* (string "=") <*> ((:) <$> objterm' <*> return [])) 
 term::Parser Expr'
-term = try equalsP <|> try parseforall <|> try parseexists <|> try (Var <$> ((:) <$> satisfy isAlpha <*> many digit <* string "(") <*> (objterm' `sepBy` string ",") <* string ")") <|> (Var <$> ((:) <$> satisfy isAlpha <*> many digit) <*> return []) <|> do { string "("; x <- expr; string ")"; return x } <|> Not <$> (string "!" >> term)
+term = try equalsP <|> try parseforall <|> try parseexists <|> try (Var <$> ((:) <$> satisfy isAlpha <*> many' digit <* string "(") <*> (objterm' `sepBy` string ",") <* string ")") <|> (Var <$> ((:) <$> satisfy isAlpha <*> many' digit) <*> return []) <|> do { string "("; x <- expr; string ")"; return x } <|> Not <$> (string "!" >> term)
 impl = do
   e1 <- try disj' <|> term
   string "->"
@@ -69,6 +74,7 @@ impl = do
 getTermWith::ObjTerm -> String -> ObjTerm
 getTermWith t []    = t
 getTermWith t (x:xs)  = getTermWith (ObjTerm "'" [t]) xs 
+--digit = satisfy isDigit 
 parseArOp op = do
     operator <- string op
     case op of
@@ -76,21 +82,24 @@ parseArOp op = do
         "*" -> return (\x y -> ObjTerm "*" [x, y])
 objterm'   =   chainl1 objterm''  (parseArOp "+")
 objterm''  =  chainl1 objterm''' (parseArOp "*")
-objterm''' =  getTermWith <$> objterm <*> many (char '\'') 
+objterm''' =  getTermWith <$> objterm <*> many' (char '\'') 
 --objval  = (ObjVar <$> ((++) <$> ((try (char '0')) <|> ((:) <$> satisfy isLower <*> many digit))  <*> many (char '\'')))   
-objterm = try (ObjTerm <$> ((:) <$> satisfy isLower <*> many digit <* string "(") <*> (objterm' `sepBy` string ",") <* string ")") <|> try (between (char '(') (char ')') objterm') <|> (ObjVar <$> ((try (string "0")) <|> ((:) <$> satisfy isLower <*> many digit))) 
+objterm = try (ObjTerm <$> ((:) <$> satisfy isLower <*> many' digit <* string "(") <*> (objterm' `sepBy` string ",") <* string ")") <|> try (between (char '(') (char ')') objterm') <|> (ObjVar <$> ((try (BS.unpack <$> string "0")) <|> ((:) <$> satisfy isLower <*> many' digit))) 
 --ObjVar <$> ((:) <$> satisfy isLower <*> many digit) 
 disj = chainl1 term parseOperation 
 expr = try impl <|> try disj' <|> term
 
-parseforall = Forall <$> (string "@" >> (ObjVar <$> ((:) <$> satisfy isLower <*> many digit))) <*> term 
-parseexists = Exists <$> (string "?" >> (ObjVar <$> ((:) <$> satisfy isLower <*> many digit))) <*> term 
+parseforall = Forall <$> (string "@" >> (ObjVar <$> ((:) <$> satisfy isLower <*> many' digit))) <*> term 
+parseexists = Exists <$> (string "?" >> (ObjVar <$> ((:) <$> satisfy isLower <*> many' digit))) <*> term 
 disj' = chainl1 conj' $ parseOperation' "|"
 conj' = chainl1 term  $ parseOperation' "&"
-parseOperation' :: BS.ByteString -> Parser (Expr' -> Expr' -> Expr')
+parseOperation' :: String -> Parser (Expr' -> Expr' -> Expr')
+spaces = many' space
+between open close p
+                    = do{ open; x <- p; close; return x }
 parseOperation' op =
   do spaces
-     operator <- string $ BS.unpack op
+     operator <- string  (BS.pack op)
      spaces
      case op of
        "&" -> return Conj
@@ -115,7 +124,7 @@ variables expr = let vars_ (Var      v _)     vs = v ++ vs
 
 header::Parser ([Expr'], Expr')
 header = (,) <$>  (expr `sepBy1` (char ','))  <* (string "|-") <*> expr
-getExpr = fromRight . parse expr ""
+getExpr x = fromRight $ feed (parse expr x) BS.empty
 
 axiom1 a b = Impl a $ Impl b a
 axiom2 a b c = Impl (Impl a b) (Impl (Impl a (Impl b c)) (Impl a c))
